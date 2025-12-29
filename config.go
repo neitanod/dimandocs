@@ -86,11 +86,52 @@ func getDefaultConfig() Config {
 		Port:  "8090",
 		Title: "Documentation Browser",
 		IgnorePatterns: []string{
-			".*/node_modules/.*",
-			".*/\\.git/.*",
-			".*/vendor/.*",
-			".*/build/.*",
-			".*/dist/.*",
+			// Version control
+			".*/\\.git(/.*)?$",
+			".*/\\.svn(/.*)?$",
+			".*/\\.hg(/.*)?$",
+
+			// Dependencies
+			".*/node_modules(/.*)?$",
+			".*/vendor(/.*)?$",
+			".*/bower_components(/.*)?$",
+
+			// Build outputs
+			".*/build(/.*)?$",
+			".*/dist(/.*)?$",
+			".*/out(/.*)?$",
+			".*/target(/.*)?$",
+
+			// Framework specific
+			".*/\\.next(/.*)?$",
+			".*/\\.nuxt(/.*)?$",
+			".*/\\.vuepress(/.*)?$",
+
+			// Caches
+			".*/\\.cache(/.*)?$",
+			".*/__pycache__(/.*)?$",
+			".*/\\.pytest_cache(/.*)?$",
+			".*/\\.nyc_output(/.*)?$",
+
+			// IDEs
+			".*/\\.vscode(/.*)?$",
+			".*/\\.idea(/.*)?$",
+			".*/\\.eclipse(/.*)?$",
+
+			// Python virtual environments
+			".*/venv(/.*)?$",
+			".*/env(/.*)?$",
+			".*/.venv(/.*)?$",
+			".*/\\.virtualenv(/.*)?$",
+
+			// Coverage and test outputs
+			".*/coverage(/.*)?$",
+			".*/htmlcov(/.*)?$",
+
+			// Temporary files
+			".*/tmp(/.*)?$",
+			".*/temp(/.*)?$",
+			".*/.tmp(/.*)?$",
 		},
 	}
 }

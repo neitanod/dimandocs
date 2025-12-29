@@ -54,12 +54,18 @@ CONFIGURATION:
     Otherwise, DimanDocs will use default settings (browse current directory for .md files).
 
     Default config when no dimandocs.json is found:
-    {
-      "directories": [{"path": "./", "name": "Documents", "file_pattern": "\\.md$"}],
-      "port": "8090",
-      "title": "Documentation Browser",
-      "ignore_patterns": [".*/node_modules/.*", ".*/\\.git/.*", ".*/vendor/.*"]
-    }
+    - Browse current directory for .md files
+    - Start server on port 8090
+    - Automatically ignore common folders:
+      * Version control: .git, .svn, .hg
+      * Dependencies: node_modules, vendor, bower_components
+      * Build outputs: build, dist, out, target
+      * Frameworks: .next, .nuxt, .vuepress
+      * Caches: .cache, __pycache__, .pytest_cache, .nyc_output
+      * IDEs: .vscode, .idea, .eclipse
+      * Python venvs: venv, env, .venv, .virtualenv
+      * Coverage: coverage, htmlcov
+      * Temp folders: tmp, temp, .tmp
 
 For more information, visit: https://github.com/yourusername/dimandocs
 `)
