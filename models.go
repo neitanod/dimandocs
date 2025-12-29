@@ -47,6 +47,25 @@ type App struct {
 	FileRegexes    map[string]*regexp.Regexp
 	WorkingDir     string
 	TargetFile     string // Specific file to open in browser (if provided)
+	UseCache       bool   // Whether to use cache file
+}
+
+// CachedDocument represents a document in cache (without content)
+type CachedDocument struct {
+	Title      string `json:"title"`
+	Path       string `json:"path"`
+	RelPath    string `json:"rel_path"`
+	DirName    string `json:"dir_name"`
+	SourceDir  string `json:"source_dir"`
+	SourceName string `json:"source_name"`
+	AbsPath    string `json:"abs_path"`
+	Overview   string `json:"overview"`
+}
+
+// CacheData represents the cached document data
+type CacheData struct {
+	Documents []CachedDocument `json:"documents"`
+	Version   string           `json:"version"`
 }
 
 // IndexData represents data for the index template

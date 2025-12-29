@@ -104,9 +104,14 @@
         }
         .tree-item.file {
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
         }
         .tree-item.file:hover {
             background: #e3f2fd;
+        }
+        .tree-item.file:visited {
+            color: inherit;
         }
 
         /* Icons */
@@ -206,11 +211,11 @@
         {{range .}}
         <li>
             {{if .IsFile}}
-                <div class="tree-item file" data-path="{{.Document.RelPath}}" onclick="window.location.href='/doc/{{.Document.RelPath}}'">
+                <a href="/doc/{{.Document.RelPath}}" class="tree-item file" data-path="{{.Document.RelPath}}">
                     <span class="tree-toggle empty"></span>
                     <span class="tree-icon">📄</span>
                     <span class="tree-label">{{.Name}}</span>
-                </div>
+                </a>
             {{else}}
                 <div class="tree-item directory" onclick="toggleNode(this)">
                     <span class="tree-toggle {{if .IsOpen}}open{{end}}">▶</span>

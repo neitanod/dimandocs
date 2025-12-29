@@ -27,6 +27,7 @@ PATH:
 OPTIONS:
     --config-file <file>    Path to configuration file (default: dimandocs.json if exists)
     --serve                 Start server without opening browser automatically
+    --cache                 Use cache file (.dimandocs-cache.json) to speed up loading
     --version               Show version information
     --help                  Show this help message
 
@@ -46,8 +47,11 @@ EXAMPLES:
     # Start server without opening browser
     dimandocs --serve
 
+    # Use cache for faster loading (large directories)
+    dimandocs --cache
+
     # Combine options
-    dimandocs --serve --config-file=config.json /path/to/docs
+    dimandocs --serve --cache --config-file=config.json /path/to/docs
 
 CONFIGURATION:
     If dimandocs.json exists in the current directory, it will be used automatically.
@@ -79,6 +83,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "Show version information")
 	configFile := flag.String("config-file", "", "Path to configuration file (default: dimandocs.json if exists)")
 	serveMode := flag.Bool("serve", false, "Start server without opening browser")
+	useCache := flag.Bool("cache", false, "Use cache file (.dimandocs-cache.json) to speed up loading")
 	flag.Parse()
 
 	// Show version and exit
@@ -96,7 +101,7 @@ func main() {
 
 	// Create and initialize application
 	app := NewApp()
-	if err := app.Initialize(*configFile, targetPath); err != nil {
+	if err := app.Initialize(*configFile, targetPath, *useCache); err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 

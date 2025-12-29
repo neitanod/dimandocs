@@ -87,51 +87,51 @@ func getDefaultConfig() Config {
 		Title: "Documentation Browser",
 		IgnorePatterns: []string{
 			// Version control
-			".*/\\.git(/.*)?$",
-			".*/\\.svn(/.*)?$",
-			".*/\\.hg(/.*)?$",
+			"(^|.*/)\\.git(/.*)?$",
+			"(^|.*/)\\.svn(/.*)?$",
+			"(^|.*/)\\.hg(/.*)?$",
 
 			// Dependencies
-			".*/node_modules(/.*)?$",
-			".*/vendor(/.*)?$",
-			".*/bower_components(/.*)?$",
+			"(^|.*/)node_modules(/.*)?$",
+			"(^|.*/)vendor(/.*)?$",
+			"(^|.*/)bower_components(/.*)?$",
 
 			// Build outputs
-			".*/build(/.*)?$",
-			".*/dist(/.*)?$",
-			".*/out(/.*)?$",
-			".*/target(/.*)?$",
+			"(^|.*/)build(/.*)?$",
+			"(^|.*/)dist(/.*)?$",
+			"(^|.*/)out(/.*)?$",
+			"(^|.*/)target(/.*)?$",
 
 			// Framework specific
-			".*/\\.next(/.*)?$",
-			".*/\\.nuxt(/.*)?$",
-			".*/\\.vuepress(/.*)?$",
+			"(^|.*/)\\.next(/.*)?$",
+			"(^|.*/)\\.nuxt(/.*)?$",
+			"(^|.*/)\\.vuepress(/.*)?$",
 
 			// Caches
-			".*/\\.cache(/.*)?$",
-			".*/__pycache__(/.*)?$",
-			".*/\\.pytest_cache(/.*)?$",
-			".*/\\.nyc_output(/.*)?$",
+			"(^|.*/)\\.cache(/.*)?$",
+			"(^|.*/|^)__pycache__(/.*)?$",
+			"(^|.*/)\\.pytest_cache(/.*)?$",
+			"(^|.*/)\\.nyc_output(/.*)?$",
 
 			// IDEs
-			".*/\\.vscode(/.*)?$",
-			".*/\\.idea(/.*)?$",
-			".*/\\.eclipse(/.*)?$",
+			"(^|.*/)\\.vscode(/.*)?$",
+			"(^|.*/)\\.idea(/.*)?$",
+			"(^|.*/)\\.eclipse(/.*)?$",
 
 			// Python virtual environments
-			".*/venv(/.*)?$",
-			".*/env(/.*)?$",
-			".*/.venv(/.*)?$",
-			".*/\\.virtualenv(/.*)?$",
+			"(^|.*/)venv(/.*)?$",
+			"(^|.*/)env(/.*)?$",
+			"(^|.*/)\\.venv(/.*)?$",
+			"(^|.*/)\\.virtualenv(/.*)?$",
 
 			// Coverage and test outputs
-			".*/coverage(/.*)?$",
-			".*/htmlcov(/.*)?$",
+			"(^|.*/)coverage(/.*)?$",
+			"(^|.*/)htmlcov(/.*)?$",
 
 			// Temporary files
-			".*/tmp(/.*)?$",
-			".*/temp(/.*)?$",
-			".*/.tmp(/.*)?$",
+			"(^|.*/)tmp(/.*)?$",
+			"(^|.*/)temp(/.*)?$",
+			"(^|.*/)\\.tmp(/.*)?$",
 		},
 	}
 }

@@ -31,22 +31,42 @@ func NewApp() *App {
 }
 
 // Initialize sets up the application
-func (a *App) Initialize(configFile string, targetPath string) error {
+func (a *App) Initialize(configFile string, targetPath string, useCache bool) error {
 	// Get working directory
 	workingDir, err := GetWorkingDirectory()
 	if err != nil {
 		return err
 	}
 	a.WorkingDir = workingDir
+	a.UseCache = useCache
 
 	// Load configuration
 	if err := a.LoadConfig(configFile, targetPath); err != nil {
 		return err
 	}
 
+	// Try to load from cache if enabled
+	if a.UseCache {
+		if err := a.loadFromCache(); err == nil {
+			fmt.Printf("Loaded %d documents from cache\n", len(a.Documents))
+			return nil
+		}
+		// If cache failed, continue with normal scan
+		fmt.Println("Cache not found or invalid, scanning directories...")
+	}
+
 	// Scan directories for documents
 	if err := a.ScanDirectories(); err != nil {
 		return err
+	}
+
+	// Save to cache if enabled
+	if a.UseCache {
+		if err := a.saveToCache(); err != nil {
+			log.Printf("Warning: failed to save cache: %v", err)
+		} else {
+			fmt.Printf("Saved %d documents to cache\n", len(a.Documents))
+		}
 	}
 
 	return nil
@@ -337,17 +357,29 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleDocument(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/doc/")
 
-	var doc *Document
-	for _, d := range a.Documents {
+	var docIndex = -1
+	for i, d := range a.Documents {
 		if d.RelPath == path {
-			doc = &d
+			docIndex = i
 			break
 		}
 	}
 
-	if doc == nil {
+	if docIndex == -1 {
 		http.NotFound(w, r)
 		return
+	}
+
+	doc := &a.Documents[docIndex]
+
+	// Load content on demand if not loaded yet
+	if doc.Content == "" {
+		content, err := ioutil.ReadFile(doc.Path)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to read document: %v", err), http.StatusInternalServerError)
+			return
+		}
+		doc.Content = string(content)
 	}
 
 	tmpl, err := template.ParseFS(templatesFS, "templates/document.html")
@@ -379,6 +411,20 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode([]Document{})
 		return
+	}
+
+	// Load all contents if not loaded yet (for search to work)
+	if a.UseCache {
+		for i := range a.Documents {
+			if a.Documents[i].Content == "" {
+				content, err := ioutil.ReadFile(a.Documents[i].Path)
+				if err != nil {
+					log.Printf("Warning: failed to read content for %s: %v", a.Documents[i].Path, err)
+					continue
+				}
+				a.Documents[i].Content = string(content)
+			}
+		}
 	}
 
 	var results []Document
@@ -466,6 +512,28 @@ func (a *App) Start(serveMode bool) error {
 
 	a.SetupRoutes()
 
+	// Load document contents in background if using cache
+	if a.UseCache {
+		// Check if we need to load contents
+		needsContentLoading := false
+		for _, doc := range a.Documents {
+			if doc.Content == "" {
+				needsContentLoading = true
+				break
+			}
+		}
+
+		if needsContentLoading {
+			go func() {
+				fmt.Println("Loading document contents in background...")
+				if err := a.loadDocumentContents(); err != nil {
+					log.Printf("Warning: failed to load some document contents: %v", err)
+				}
+				fmt.Printf("Finished loading contents for %d documents\n", len(a.Documents))
+			}()
+		}
+	}
+
 	url := fmt.Sprintf("http://localhost:%d", port)
 
 	// If a specific file was requested, find its URL path
@@ -499,4 +567,92 @@ func (a *App) Start(serveMode bool) error {
 	}
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+}
+
+// loadFromCache loads documents from cache file (without content)
+func (a *App) loadFromCache() error {
+	cacheFile := ".dimandocs-cache.json"
+
+	data, err := ioutil.ReadFile(cacheFile)
+	if err != nil {
+		return fmt.Errorf("failed to read cache file: %w", err)
+	}
+
+	var cache CacheData
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return fmt.Errorf("failed to parse cache file: %w", err)
+	}
+
+	// Convert CachedDocuments to Documents (Content will be empty initially)
+	a.Documents = make([]Document, len(cache.Documents))
+	for i, cached := range cache.Documents {
+		a.Documents[i] = Document{
+			Title:      cached.Title,
+			Path:       cached.Path,
+			Content:    "", // Empty - will be loaded later
+			RelPath:    cached.RelPath,
+			DirName:    cached.DirName,
+			SourceDir:  cached.SourceDir,
+			SourceName: cached.SourceName,
+			AbsPath:    cached.AbsPath,
+			Overview:   cached.Overview,
+		}
+	}
+
+	return nil
+}
+
+// loadDocumentContents loads the content of all documents from their files
+func (a *App) loadDocumentContents() error {
+	for i := range a.Documents {
+		// Skip if content already loaded
+		if a.Documents[i].Content != "" {
+			continue
+		}
+
+		content, err := ioutil.ReadFile(a.Documents[i].Path)
+		if err != nil {
+			log.Printf("Warning: failed to read content for %s: %v", a.Documents[i].Path, err)
+			continue
+		}
+
+		a.Documents[i].Content = string(content)
+	}
+	return nil
+}
+
+// saveToCache saves documents to cache file (without content)
+func (a *App) saveToCache() error {
+	cacheFile := ".dimandocs-cache.json"
+
+	// Convert Documents to CachedDocuments (exclude Content field)
+	cachedDocs := make([]CachedDocument, len(a.Documents))
+	for i, doc := range a.Documents {
+		cachedDocs[i] = CachedDocument{
+			Title:      doc.Title,
+			Path:       doc.Path,
+			RelPath:    doc.RelPath,
+			DirName:    doc.DirName,
+			SourceDir:  doc.SourceDir,
+			SourceName: doc.SourceName,
+			AbsPath:    doc.AbsPath,
+			Overview:   doc.Overview,
+		}
+	}
+
+	cache := CacheData{
+		Documents: cachedDocs,
+		Version:   Version,
+	}
+
+	data, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal cache data: %w", err)
+	}
+
+	if err := ioutil.WriteFile(cacheFile, data, 0644); err != nil {
+		return fmt.Errorf("failed to write cache file: %w", err)
+	}
+
+	return nil
 }
