@@ -3,70 +3,251 @@
 <head>
     <title>{{.Title}}</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px; }
-        .directory-group { margin-bottom: 40px; }
-        .directory-header { background: #007bff; color: white; padding: 15px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
-        .directory-header h2 { margin: 0; font-size: 1.5em; }
-        .nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; padding: 20px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
-        .nav-item { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; transition: box-shadow 0.3s; }
-        .nav-item:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .nav-item a { text-decoration: none; color: #333; }
-        .nav-item h3 { margin: 0 0 10px 0; color: #007bff; }
-        .nav-item p { margin: 0; color: #666; font-size: 14px; }
-        .nav-item .overview { margin: 10px 0 0 0; color: #555; font-size: 13px; font-style: regular; line-height: 1.4; }
-        .total-count { color: #666; font-size: 0.9em; }
-        .total-count-inner { color: #ccc; font-size: 0.8em; font-weight: normal; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .total-count {
+            color: #7f8c8d;
+            font-size: 0.95em;
+            margin: 0 0 20px 0;
+        }
+
+        /* Search */
         .search-box { margin-top: 20px; }
-        .search-input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #dee2e6; border-radius: 8px; box-sizing: border-box; transition: border-color 0.3s; }
-        .search-input:focus { outline: none; border-color: #007bff; }
-        .search-results-info { margin-top: 10px; color: #666; font-size: 0.9em; }
+        .search-input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .search-results-info {
+            margin-top: 10px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
         .hidden { display: none; }
-        .highlight { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+
+        /* Directory Tree Container */
+        .directory-group {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .directory-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+        }
+        .directory-header h2 {
+            margin: 0;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+        .total-count-inner {
+            opacity: 0.85;
+            font-size: 0.85em;
+            font-weight: normal;
+        }
+
+        /* Tree Structure */
+        .tree-container {
+            padding: 20px 25px;
+        }
+        .tree-node {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .tree-node > li {
+            margin: 4px 0;
+        }
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .tree-item:hover {
+            background: #f8f9fa;
+        }
+        .tree-item.file {
+            cursor: pointer;
+        }
+        .tree-item.file:hover {
+            background: #e3f2fd;
+        }
+
+        /* Icons */
+        .tree-icon {
+            margin-right: 8px;
+            font-size: 16px;
+            width: 20px;
+            display: inline-block;
+            text-align: center;
+        }
+        .tree-toggle {
+            margin-right: 4px;
+            font-size: 12px;
+            width: 16px;
+            display: inline-block;
+            text-align: center;
+            color: #95a5a6;
+            transition: transform 0.2s;
+        }
+        .tree-toggle.open {
+            transform: rotate(90deg);
+        }
+        .tree-toggle.empty {
+            visibility: hidden;
+        }
+
+        /* Node labels */
+        .tree-label {
+            flex: 1;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .tree-item.file .tree-label {
+            color: #3498db;
+            font-weight: 500;
+        }
+        .tree-item.directory .tree-label {
+            font-weight: 500;
+            color: #34495e;
+        }
+
+        /* Children container */
+        .tree-children {
+            margin-left: 24px;
+            border-left: 1px solid #ecf0f1;
+            padding-left: 8px;
+            display: none;
+        }
+        .tree-children.open {
+            display: block;
+        }
+
+        /* Overview tooltip */
+        .tree-overview {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>{{.Title}}</h1>
-            <p class="total-count">Documentation Browser - <span id="doc-count">{{.TotalDocuments}}</span> documents found across {{len .Groups}} directories</p>
+            <p class="total-count">
+                <span id="doc-count">{{.TotalDocuments}}</span> documents found across {{len .Trees}} directories
+            </p>
             <div class="search-box">
                 <input type="text" id="search-input" class="search-input" placeholder="Search across all documents...">
                 <div id="search-results-info" class="search-results-info hidden"></div>
             </div>
         </div>
-        {{range .Groups}}
-        <div class="directory-group">
+
+        {{range .Trees}}
+        <div class="directory-group" data-source="{{.Name}}">
             <div class="directory-header">
-                <h2>{{.Name}} <span class="total-count-inner">({{len .Documents}} documents)</span></h2>
+                <h2>{{.Name}} <span class="total-count-inner">({{len .Root.Children}} items)</span></h2>
             </div>
-            <div class="nav">
-                {{range .Documents}}
-                <div class="nav-item">
-                    <a href="/doc/{{.RelPath}}">
-                        <h3>{{.DirName}}</h3>
-                        <p>{{.AbsPath}}</p>
-                        {{if .Overview}}
-                        <p class="overview">{{.Overview}}</p>
-                        {{end}}
-                    </a>
-                </div>
-                {{end}}
+            <div class="tree-container">
+                {{template "tree-node" .Root.Children}}
             </div>
         </div>
         {{end}}
     </div>
+
+    {{define "tree-node"}}
+    <ul class="tree-node">
+        {{range .}}
+        <li>
+            {{if .IsFile}}
+                <div class="tree-item file" data-path="{{.Document.RelPath}}" onclick="window.location.href='/doc/{{.Document.RelPath}}'">
+                    <span class="tree-toggle empty"></span>
+                    <span class="tree-icon">📄</span>
+                    <span class="tree-label">{{.Name}}</span>
+                </div>
+            {{else}}
+                <div class="tree-item directory" onclick="toggleNode(this)">
+                    <span class="tree-toggle {{if .IsOpen}}open{{end}}">▶</span>
+                    <span class="tree-icon">📁</span>
+                    <span class="tree-label">{{.Name}}</span>
+                </div>
+                {{if .Children}}
+                <div class="tree-children {{if .IsOpen}}open{{end}}">
+                    {{template "tree-node" .Children}}
+                </div>
+                {{end}}
+            {{end}}
+        </li>
+        {{end}}
+    </ul>
+    {{end}}
+
     <script>
-        // Store original documents for resetting search
-        const allDocuments = Array.from(document.querySelectorAll('.nav-item'));
-        const allGroups = Array.from(document.querySelectorAll('.directory-group'));
+        // Toggle tree nodes
+        function toggleNode(element) {
+            const toggle = element.querySelector('.tree-toggle');
+            const children = element.nextElementSibling;
+
+            if (children && children.classList.contains('tree-children')) {
+                children.classList.toggle('open');
+                toggle.classList.toggle('open');
+            }
+        }
+
+        // Search functionality
         const searchInput = document.getElementById('search-input');
         const searchResultsInfo = document.getElementById('search-results-info');
         const docCount = document.getElementById('doc-count');
+        const allFileItems = Array.from(document.querySelectorAll('.tree-item.file'));
+        const allDirectoryGroups = Array.from(document.querySelectorAll('.directory-group'));
         let searchTimeout;
 
-        // Debounce search to avoid too many API calls
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
@@ -76,11 +257,13 @@
 
         async function performSearch(query) {
             if (!query) {
-                // Show all documents
-                allGroups.forEach(group => group.classList.remove('hidden'));
-                allDocuments.forEach(doc => doc.classList.remove('hidden'));
+                // Reset view
+                allDirectoryGroups.forEach(group => group.style.display = 'block');
+                document.querySelectorAll('.tree-item, .tree-children').forEach(el => {
+                    el.style.display = '';
+                });
                 searchResultsInfo.classList.add('hidden');
-                docCount.textContent = allDocuments.length;
+                docCount.textContent = allFileItems.length;
                 return;
             }
 
@@ -88,9 +271,11 @@
                 const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                 const results = await response.json();
 
-                // Hide all documents first
-                allDocuments.forEach(doc => doc.classList.add('hidden'));
-                allGroups.forEach(group => group.classList.add('hidden'));
+                // Hide everything first
+                document.querySelectorAll('.tree-item, .tree-children').forEach(el => {
+                    el.style.display = 'none';
+                });
+                allDirectoryGroups.forEach(group => group.style.display = 'none');
 
                 if (results.length === 0) {
                     searchResultsInfo.textContent = 'No documents found';
@@ -99,28 +284,40 @@
                     return;
                 }
 
-                // Show only matching documents
+                // Show matching files and their parent paths
                 const matchingPaths = new Set(results.map(doc => doc.RelPath));
                 const visibleGroups = new Set();
 
-                allDocuments.forEach(docElement => {
-                    const link = docElement.querySelector('a');
-                    if (link) {
-                        const href = link.getAttribute('href');
-                        const relPath = href.replace('/doc/', '');
-                        if (matchingPaths.has(relPath)) {
-                            docElement.classList.remove('hidden');
-                            // Find and show the parent group
-                            const parentGroup = docElement.closest('.directory-group');
-                            if (parentGroup) {
-                                visibleGroups.add(parentGroup);
+                allFileItems.forEach(fileItem => {
+                    const path = fileItem.getAttribute('data-path');
+                    if (matchingPaths.has(path)) {
+                        // Show the file
+                        fileItem.style.display = 'flex';
+
+                        // Show all parent directories
+                        let current = fileItem.parentElement;
+                        while (current) {
+                            if (current.classList.contains('tree-children')) {
+                                current.style.display = 'block';
+                                current.classList.add('open');
+                                // Show the directory item that controls this children container
+                                const prevSibling = current.previousElementSibling;
+                                if (prevSibling && prevSibling.classList.contains('tree-item')) {
+                                    prevSibling.style.display = 'flex';
+                                    const toggle = prevSibling.querySelector('.tree-toggle');
+                                    if (toggle) toggle.classList.add('open');
+                                }
+                            } else if (current.classList.contains('directory-group')) {
+                                visibleGroups.add(current);
+                                break;
                             }
+                            current = current.parentElement;
                         }
                     }
                 });
 
-                // Show groups that have visible documents
-                visibleGroups.forEach(group => group.classList.remove('hidden'));
+                // Show groups with visible files
+                visibleGroups.forEach(group => group.style.display = 'block');
 
                 searchResultsInfo.textContent = `Found ${results.length} matching document${results.length !== 1 ? 's' : ''}`;
                 searchResultsInfo.classList.remove('hidden');

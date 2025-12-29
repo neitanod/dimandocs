@@ -13,9 +13,66 @@ var (
 	BuildTime = "unknown"
 )
 
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `DimanDocs - A lightweight documentation browser for markdown files
+
+USAGE:
+    dimandocs [OPTIONS] [PATH]
+
+PATH:
+    If PATH is a directory: Browse all markdown files in that directory
+    If PATH is a file:      Open browser directly to that file
+    If PATH is omitted:     Use current directory or dimandocs.json config
+
+OPTIONS:
+    --config-file <file>    Path to configuration file (default: dimandocs.json if exists)
+    --serve                 Start server without opening browser automatically
+    --version               Show version information
+    --help                  Show this help message
+
+EXAMPLES:
+    # Browse current directory with default settings
+    dimandocs
+
+    # Browse a specific directory
+    dimandocs /path/to/docs
+
+    # Open a specific markdown file
+    dimandocs /path/to/README.md
+
+    # Use custom config file
+    dimandocs --config-file=custom.json
+
+    # Start server without opening browser
+    dimandocs --serve
+
+    # Combine options
+    dimandocs --serve --config-file=config.json /path/to/docs
+
+CONFIGURATION:
+    If dimandocs.json exists in the current directory, it will be used automatically.
+    Otherwise, DimanDocs will use default settings (browse current directory for .md files).
+
+    Default config when no dimandocs.json is found:
+    {
+      "directories": [{"path": "./", "name": "Documents", "file_pattern": "\\.md$"}],
+      "port": "8090",
+      "title": "Documentation Browser",
+      "ignore_patterns": [".*/node_modules/.*", ".*/\\.git/.*", ".*/vendor/.*"]
+    }
+
+For more information, visit: https://github.com/yourusername/dimandocs
+`)
+}
+
 func main() {
+	// Custom usage message
+	flag.Usage = printUsage
+
 	// Parse command line flags
 	showVersion := flag.Bool("version", false, "Show version information")
+	configFile := flag.String("config-file", "", "Path to configuration file (default: dimandocs.json if exists)")
+	serveMode := flag.Bool("serve", false, "Start server without opening browser")
 	flag.Parse()
 
 	// Show version and exit
@@ -25,20 +82,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Get config file from command line args
-	configFile := ""
+	// Get target path from first positional argument
+	targetPath := ""
 	if flag.NArg() > 0 {
-		configFile = flag.Arg(0)
+		targetPath = flag.Arg(0)
 	}
 
 	// Create and initialize application
 	app := NewApp()
-	if err := app.Initialize(configFile); err != nil {
+	if err := app.Initialize(*configFile, targetPath); err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 
 	// Start the server
-	if err := app.Start(); err != nil {
+	if err := app.Start(*serveMode); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

@@ -1,14 +1,9 @@
 {
   "directories": [
     {
-      "path": "./docs/ADRs",
-      "name": "Architecture Decision Records",
+      "path": "./",
+      "name": "Project documents",
       "file_pattern": "\\.md$"
-    },
-    {
-      "path": "./src/modules",
-      "name": "Modules",
-      "file_pattern": "^(?i)(readme\\.md)$"
     }
   ],
   "port": "8090",

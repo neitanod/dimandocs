@@ -46,12 +46,14 @@ type App struct {
 	IgnoreRegexes  []*regexp.Regexp
 	FileRegexes    map[string]*regexp.Regexp
 	WorkingDir     string
+	TargetFile     string // Specific file to open in browser (if provided)
 }
 
 // IndexData represents data for the index template
 type IndexData struct {
 	Title          string
 	Groups         []DirectoryGroup
+	Trees          []DirectoryTree
 	TotalDocuments int
 }
 
@@ -62,4 +64,20 @@ type DocumentData struct {
 	DirName  string
 	AbsPath  string
 	Content  template.HTML
+}
+
+// TreeNode represents a node in the directory tree
+type TreeNode struct {
+	Name     string
+	Path     string
+	IsFile   bool
+	Document *Document
+	Children []*TreeNode
+	IsOpen   bool
+}
+
+// DirectoryTree represents a tree of documents grouped by directory
+type DirectoryTree struct {
+	Name string
+	Root *TreeNode
 }

@@ -7,10 +7,14 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/russross/blackfriday/v2"
@@ -27,7 +31,7 @@ func NewApp() *App {
 }
 
 // Initialize sets up the application
-func (a *App) Initialize(configFile string) error {
+func (a *App) Initialize(configFile string, targetPath string) error {
 	// Get working directory
 	workingDir, err := GetWorkingDirectory()
 	if err != nil {
@@ -36,7 +40,7 @@ func (a *App) Initialize(configFile string) error {
 	a.WorkingDir = workingDir
 
 	// Load configuration
-	if err := a.LoadConfig(configFile); err != nil {
+	if err := a.LoadConfig(configFile, targetPath); err != nil {
 		return err
 	}
 
@@ -211,6 +215,93 @@ func (a *App) GroupDocumentsByDirectory() []DirectoryGroup {
 	return groups
 }
 
+// BuildDirectoryTrees builds tree structures for each source directory
+func (a *App) BuildDirectoryTrees() []DirectoryTree {
+	// Group documents by source directory
+	groupMap := make(map[string][]Document)
+	for _, doc := range a.Documents {
+		groupMap[doc.SourceName] = append(groupMap[doc.SourceName], doc)
+	}
+
+	var trees []DirectoryTree
+	for sourceName, docs := range groupMap {
+		root := &TreeNode{
+			Name:     sourceName,
+			Path:     "",
+			IsFile:   false,
+			Children: []*TreeNode{},
+			IsOpen:   true,
+		}
+
+		// Build tree for each document
+		for i := range docs {
+			doc := &docs[i]
+			addDocumentToTree(root, doc, doc.SourceDir)
+		}
+
+		trees = append(trees, DirectoryTree{
+			Name: sourceName,
+			Root: root,
+		})
+	}
+
+	return trees
+}
+
+// addDocumentToTree adds a document to the tree structure
+func addDocumentToTree(root *TreeNode, doc *Document, sourceDir string) {
+	// Get relative path from source directory
+	relPath, err := filepath.Rel(sourceDir, doc.Path)
+	if err != nil {
+		relPath = doc.Path
+	}
+
+	// Split path into parts
+	parts := strings.Split(filepath.ToSlash(relPath), "/")
+
+	current := root
+	currentPath := ""
+
+	// Navigate/create tree structure
+	for i, part := range parts {
+		if currentPath == "" {
+			currentPath = part
+		} else {
+			currentPath = currentPath + "/" + part
+		}
+
+		isFile := (i == len(parts)-1)
+
+		// Look for existing node
+		var found *TreeNode
+		for _, child := range current.Children {
+			if child.Name == part {
+				found = child
+				break
+			}
+		}
+
+		if found == nil {
+			// Create new node
+			newNode := &TreeNode{
+				Name:   part,
+				Path:   currentPath,
+				IsFile: isFile,
+				IsOpen: false,
+			}
+
+			if isFile {
+				newNode.Document = doc
+			}
+
+			current.Children = append(current.Children, newNode)
+			current = newNode
+		} else {
+			current = found
+		}
+	}
+}
+
 // SetupRoutes sets up HTTP routes
 func (a *App) SetupRoutes() {
 	http.HandleFunc("/", a.handleIndex)
@@ -228,10 +319,12 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	groups := a.GroupDocumentsByDirectory()
+	trees := a.BuildDirectoryTrees()
 
 	data := IndexData{
 		Title:          a.Config.Title,
 		Groups:         groups,
+		Trees:          trees,
 		TotalDocuments: len(a.Documents),
 	}
 
@@ -309,17 +402,101 @@ func (a *App) handleStatic(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, r.URL.Path[1:])
 }
 
+// findAvailablePort finds an available port starting from the given port
+func findAvailablePort(startPort int) (int, error) {
+	for port := startPort; port < startPort+100; port++ {
+		addr := fmt.Sprintf(":%d", port)
+		listener, err := net.Listen("tcp", addr)
+		if err == nil {
+			listener.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("no available port found in range %d-%d", startPort, startPort+100)
+}
+
+// openBrowser opens the default browser with the given URL
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	return cmd.Start()
+}
+
+// getFileURL finds the URL path for a specific file
+func (a *App) getFileURL(targetFile string) (string, error) {
+	// Find the document that matches the target file
+	for _, doc := range a.Documents {
+		absDocPath, err := filepath.Abs(doc.Path)
+		if err != nil {
+			continue
+		}
+		if absDocPath == targetFile {
+			return "/doc/" + doc.RelPath, nil
+		}
+	}
+	return "", fmt.Errorf("file not found in documents")
+}
+
 // Start starts the HTTP server
-func (a *App) Start() error {
-	port := a.Config.Port
-	if port == "" {
-		port = "8080"
+func (a *App) Start(serveMode bool) error {
+	// Get desired port from config
+	desiredPort := 8090
+	if a.Config.Port != "" {
+		if p, err := strconv.Atoi(a.Config.Port); err == nil {
+			desiredPort = p
+		}
+	}
+
+	// Find an available port
+	port, err := findAvailablePort(desiredPort)
+	if err != nil {
+		return err
 	}
 
 	a.SetupRoutes()
 
-	fmt.Printf("Starting server on port %s\n", port)
-	fmt.Printf("Found %d documents\n", len(a.Documents))
+	url := fmt.Sprintf("http://localhost:%d", port)
 
-	return http.ListenAndServe(":"+port, nil)
+	// If a specific file was requested, find its URL path
+	if a.TargetFile != "" {
+		fileURL, err := a.getFileURL(a.TargetFile)
+		if err != nil {
+			log.Printf("Warning: could not find URL for file %s: %v\n", a.TargetFile, err)
+		} else {
+			url = fmt.Sprintf("http://localhost:%d%s", port, fileURL)
+		}
+	}
+
+	fmt.Printf("\n")
+	fmt.Printf("DimanDocs Server Started\n")
+	fmt.Printf("========================\n")
+	fmt.Printf("Found %d documents\n", len(a.Documents))
+	fmt.Printf("Server running at: http://localhost:%d\n", port)
+	if a.TargetFile != "" {
+		fmt.Printf("Opening file: %s\n", a.TargetFile)
+	}
+	fmt.Printf("\n")
+	fmt.Printf("Press Ctrl+C to stop the server\n")
+	fmt.Printf("\n")
+
+	// Open browser unless in serve mode
+	if !serveMode {
+		if err := openBrowser(url); err != nil {
+			log.Printf("Could not open browser automatically: %v\n", err)
+			fmt.Printf("Please open your browser manually to: %s\n", url)
+		}
+	}
+
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
