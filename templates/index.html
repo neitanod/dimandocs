@@ -253,6 +253,9 @@
         const allDirectoryGroups = Array.from(document.querySelectorAll('.directory-group'));
         let searchTimeout;
 
+        // Focus on search input when page loads
+        searchInput.focus();
+
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
@@ -333,6 +336,40 @@
                 searchResultsInfo.classList.remove('hidden');
             }
         }
+
+        // Arrow key navigation for links (when not in search input)
+        document.addEventListener('keydown', function(e) {
+            // Only handle arrow keys when focus is NOT on the search input
+            if (document.activeElement === searchInput) {
+                return;
+            }
+
+            // Check if we're on a file link
+            const currentElement = document.activeElement;
+            const isOnFileLink = currentElement.classList && currentElement.classList.contains('file');
+
+            if (isOnFileLink) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    // Simulate Tab (move to next focusable element)
+                    const focusableElements = Array.from(document.querySelectorAll('a.tree-item.file, input#search-input'));
+                    const currentIndex = focusableElements.indexOf(currentElement);
+                    const nextElement = focusableElements[currentIndex + 1];
+                    if (nextElement) {
+                        nextElement.focus();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    // Simulate Shift+Tab (move to previous focusable element)
+                    const focusableElements = Array.from(document.querySelectorAll('a.tree-item.file, input#search-input'));
+                    const currentIndex = focusableElements.indexOf(currentElement);
+                    const prevElement = focusableElements[currentIndex - 1];
+                    if (prevElement) {
+                        prevElement.focus();
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>
