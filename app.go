@@ -370,7 +370,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// stripFrontmatter removes YAML frontmatter from markdown content
+// stripFrontmatter converts YAML frontmatter to a preformatted code block
 // Frontmatter is delimited by --- at the start and end
 func stripFrontmatter(content string) string {
 	// Check if content starts with frontmatter delimiter
@@ -388,8 +388,15 @@ func stripFrontmatter(content string) string {
 	for i := 1; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
 		if line == "---" {
-			// Found closing delimiter, return content after it
-			return strings.Join(lines[i+1:], "\n")
+			// Found closing delimiter
+			// Extract frontmatter content (between the two ---)
+			frontmatterLines := lines[1:i]
+			remainingContent := strings.Join(lines[i+1:], "\n")
+
+			// Convert frontmatter to a YAML code block
+			codeBlock := "```yaml\n" + strings.Join(frontmatterLines, "\n") + "\n```\n\n"
+
+			return codeBlock + remainingContent
 		}
 	}
 
