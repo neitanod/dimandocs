@@ -370,6 +370,33 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// stripFrontmatter removes YAML frontmatter from markdown content
+// Frontmatter is delimited by --- at the start and end
+func stripFrontmatter(content string) string {
+	// Check if content starts with frontmatter delimiter
+	if !strings.HasPrefix(content, "---\n") && !strings.HasPrefix(content, "---\r\n") {
+		return content
+	}
+
+	// Find the closing delimiter
+	lines := strings.Split(content, "\n")
+	if len(lines) < 3 {
+		return content
+	}
+
+	// Look for the second --- (closing delimiter)
+	for i := 1; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "---" {
+			// Found closing delimiter, return content after it
+			return strings.Join(lines[i+1:], "\n")
+		}
+	}
+
+	// No closing delimiter found, return original content
+	return content
+}
+
 // handleDocument handles individual document pages
 func (a *App) handleDocument(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/doc/")
@@ -405,9 +432,12 @@ func (a *App) handleDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remove YAML frontmatter if present
+	content := stripFrontmatter(doc.Content)
+
 	// Render markdown to HTML using Goldmark with GFM support
 	var buf bytes.Buffer
-	if err := markdownRenderer.Convert([]byte(doc.Content), &buf); err != nil {
+	if err := markdownRenderer.Convert([]byte(content), &buf); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to render markdown: %v", err), http.StatusInternalServerError)
 		return
 	}
