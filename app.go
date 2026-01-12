@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -17,11 +18,27 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/russross/blackfriday/v2"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 //go:embed templates/*
 var templatesFS embed.FS
+
+// Goldmark markdown renderer with GitHub Flavored Markdown support
+var markdownRenderer = goldmark.New(
+	goldmark.WithExtensions(
+		extension.GFM, // GitHub Flavored Markdown
+	),
+	goldmark.WithParserOptions(
+		parser.WithAutoHeadingID(), // Auto-generate heading IDs
+	),
+	goldmark.WithRendererOptions(
+		html.WithUnsafe(), // Allow raw HTML in markdown
+	),
+)
 
 // NewApp creates a new application instance
 func NewApp() *App {
@@ -388,14 +405,20 @@ func (a *App) handleDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	html := blackfriday.Run([]byte(doc.Content))
+	// Render markdown to HTML using Goldmark with GFM support
+	var buf bytes.Buffer
+	if err := markdownRenderer.Convert([]byte(doc.Content), &buf); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to render markdown: %v", err), http.StatusInternalServerError)
+		return
+	}
+	htmlContent := buf.Bytes()
 
 	data := DocumentData{
 		Title:    doc.Title,
 		AppTitle: a.Config.Title,
 		DirName:  doc.DirName,
 		AbsPath:  doc.AbsPath,
-		Content:  template.HTML(html),
+		Content:  template.HTML(htmlContent),
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {

@@ -1,5 +1,7 @@
 module dimandocs
 
-go 1.19
+go 1.22
 
-require github.com/russross/blackfriday/v2 v2.1.0
+toolchain go1.24.11
+
+require github.com/yuin/goldmark v1.7.16
