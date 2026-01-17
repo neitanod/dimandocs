@@ -344,6 +344,7 @@ func (a *App) SetupRoutes() {
 	http.HandleFunc("/", a.handleIndex)
 	http.HandleFunc("/doc/", a.handleDocument)
 	http.HandleFunc("/api/search", a.handleSearch)
+	http.HandleFunc("/api/reload", a.handleReload)
 	http.HandleFunc("/static/", a.handleStatic)
 }
 
@@ -501,6 +502,47 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(results); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to encode results: %v", err), http.StatusInternalServerError)
 	}
+}
+
+// handleReload reloads all documents from the filesystem
+func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
+	// Only allow POST requests
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	log.Println("Reloading documents from filesystem...")
+
+	// Clear existing documents
+	a.Documents = []Document{}
+
+	// Re-scan all configured directories
+	for _, dir := range a.Config.Directories {
+		if err := a.scanDirectory(dir.Path, dir.Name, a.FileRegexes[dir.Path]); err != nil {
+			log.Printf("Error scanning directory %s: %v", dir.Path, err)
+		}
+	}
+
+	log.Printf("Reload complete: found %d documents", len(a.Documents))
+
+	// Update cache with new document list if caching is enabled
+	if a.UseCache {
+		if err := a.saveToCache(); err != nil {
+			log.Printf("Warning: failed to update cache: %v", err)
+		} else {
+			log.Println("Cache updated with new document list")
+		}
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"success": true,
+		"count":   len(a.Documents),
+		"message": fmt.Sprintf("Reloaded %d documents", len(a.Documents)),
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // handleStatic handles static file serving

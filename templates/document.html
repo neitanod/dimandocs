@@ -19,10 +19,27 @@
         .toc-nav .toc-h4 { padding-left: 30px; font-size: 12px; color: #888; }
         .main-content { flex: 1; min-width: 0; }
         .header { background: #f8f9fa; padding: 15px; margin-bottom: 30px; border-radius: 8px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .header a { color: #007bff; text-decoration: none; }
         .header a:hover { text-decoration: underline; }
         .header p { margin: 10px 0 5px 0; font-weight: 500; }
         .header small { color: #666; font-size: 12px; }
+        .reload-btn {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .reload-btn:hover { background: #2980b9; }
+        .reload-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
         .content { background: white; padding: 30px; border: 1px solid #dee2e6; border-radius: 8px; }
         .content h1, .content h2, .content h3, .content h4 { color: #333; scroll-margin-top: 20px; }
         .content h1 { border-bottom: 2px solid #007bff; padding-bottom: 10px; }
@@ -51,7 +68,10 @@
 
         <div class="main-content">
             <div class="header">
-                <a href="/">← Back to Documentation</a>
+                <div class="header-top">
+                    <a href="/">← Back to Documentation</a>
+                    <button id="reload-btn" class="reload-btn">Reload</button>
+                </div>
                 <p>{{.DirName}}</p>
                 <small>{{.AbsPath}}</small>
             </div>
@@ -62,6 +82,32 @@
     </div>
 
     <script>
+        // Reload button functionality
+        const reloadBtn = document.getElementById('reload-btn');
+        reloadBtn.addEventListener('click', async function() {
+            reloadBtn.disabled = true;
+            reloadBtn.textContent = 'Reloading...';
+
+            try {
+                const response = await fetch('/api/reload', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Reload the page to show updated document
+                    window.location.reload();
+                } else {
+                    alert('Failed to reload documents');
+                    reloadBtn.disabled = false;
+                    reloadBtn.textContent = 'Reload';
+                }
+            } catch (error) {
+                console.error('Reload error:', error);
+                alert('Error reloading documents: ' + error.message);
+                reloadBtn.disabled = false;
+                reloadBtn.textContent = 'Reload';
+            }
+        });
+
         // Generate Table of Contents
         (function() {
             const content = document.getElementById('document-content');

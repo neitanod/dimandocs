@@ -22,9 +22,33 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
         .header h1 {
-            margin: 0 0 10px 0;
+            margin: 0;
             color: #2c3e50;
+        }
+        .reload-btn {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .reload-btn:hover {
+            background: #2980b9;
+        }
+        .reload-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
         }
         .total-count {
             color: #7f8c8d;
@@ -184,7 +208,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>{{.Title}}</h1>
+            <div class="header-top">
+                <h1>{{.Title}}</h1>
+                <button id="reload-btn" class="reload-btn">Reload</button>
+            </div>
             <p class="total-count">
                 <span id="doc-count">{{.TotalDocuments}}</span> documents found across {{len .Trees}} directories
             </p>
@@ -244,6 +271,32 @@
                 toggle.classList.toggle('open');
             }
         }
+
+        // Reload button functionality
+        const reloadBtn = document.getElementById('reload-btn');
+        reloadBtn.addEventListener('click', async function() {
+            reloadBtn.disabled = true;
+            reloadBtn.textContent = 'Reloading...';
+
+            try {
+                const response = await fetch('/api/reload', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Reload the page to show updated documents
+                    window.location.reload();
+                } else {
+                    alert('Failed to reload documents');
+                    reloadBtn.disabled = false;
+                    reloadBtn.textContent = 'Reload';
+                }
+            } catch (error) {
+                console.error('Reload error:', error);
+                alert('Error reloading documents: ' + error.message);
+                reloadBtn.disabled = false;
+                reloadBtn.textContent = 'Reload';
+            }
+        });
 
         // Search functionality
         const searchInput = document.getElementById('search-input');
