@@ -424,5 +424,11 @@
             }
         });
     </script>
+    <script>
+        (function() {
+            var es = new EventSource('/events');
+            es.onerror = function() { setTimeout(function() { es = new EventSource('/events'); }, 2000); };
+        })();
+    </script>
 </body>
 </html>

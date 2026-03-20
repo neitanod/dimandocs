@@ -2,7 +2,11 @@ package main
 
 import (
 	"html/template"
+	"log"
+	"os"
 	"regexp"
+	"sync"
+	"time"
 )
 
 // DirectoryConfig represents a directory configuration with path, name, and file pattern
@@ -48,6 +52,63 @@ type App struct {
 	WorkingDir     string
 	TargetFile     string // Specific file to open in browser (if provided)
 	UseCache       bool   // Whether to use cache file
+	Clients        *ClientTracker
+}
+
+const shutdownGrace = 5 * time.Second
+
+// ClientTracker tracks connected SSE clients and handles auto-shutdown
+type ClientTracker struct {
+	mu            sync.Mutex
+	count         int
+	shutdownTimer *time.Timer
+	serve         bool // if true, never auto-shutdown
+}
+
+// NewClientTracker creates a new client tracker
+func NewClientTracker(serve bool) *ClientTracker {
+	return &ClientTracker{serve: serve}
+}
+
+// Add registers a new connected client
+func (ct *ClientTracker) Add() {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ct.count++
+	if ct.shutdownTimer != nil {
+		ct.shutdownTimer.Stop()
+		ct.shutdownTimer = nil
+	}
+	log.Printf("Client connected (%d active)", ct.count)
+}
+
+// Remove unregisters a disconnected client
+func (ct *ClientTracker) Remove() {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ct.count--
+	if ct.count < 0 {
+		ct.count = 0
+	}
+	log.Printf("Client disconnected (%d active)", ct.count)
+	if ct.count == 0 && !ct.serve {
+		ct.shutdownTimer = time.AfterFunc(shutdownGrace, func() {
+			ct.mu.Lock()
+			c := ct.count
+			ct.mu.Unlock()
+			if c == 0 {
+				log.Println("No clients connected, shutting down")
+				os.Exit(0)
+			}
+		})
+	}
+}
+
+// Count returns the current number of connected clients
+func (ct *ClientTracker) Count() int {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	return ct.count
 }
 
 // CachedDocument represents a document in cache (without content)

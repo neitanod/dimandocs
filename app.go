@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -345,7 +346,42 @@ func (a *App) SetupRoutes() {
 	http.HandleFunc("/doc/", a.handleDocument)
 	http.HandleFunc("/api/search", a.handleSearch)
 	http.HandleFunc("/api/reload", a.handleReload)
+	http.HandleFunc("/events", a.handleEvents)
 	http.HandleFunc("/static/", a.handleStatic)
+}
+
+// handleEvents handles SSE connections for client tracking
+func (a *App) handleEvents(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	a.Clients.Add()
+	defer a.Clients.Remove()
+
+	// Send initial client count
+	fmt.Fprintf(w, "data: {\"clients\": %d}\n\n", a.Clients.Count())
+	flusher.Flush()
+
+	// Keep-alive: send count every 15s
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			fmt.Fprintf(w, "data: {\"clients\": %d}\n\n", a.Clients.Count())
+			flusher.Flush()
+		}
+	}
 }
 
 // handleIndex handles the index page
@@ -612,6 +648,9 @@ func (a *App) Start(serveMode bool) error {
 		return err
 	}
 
+	// Initialize client tracker
+	a.Clients = NewClientTracker(serveMode)
+
 	a.SetupRoutes()
 
 	// Load document contents in background if using cache
@@ -657,16 +696,20 @@ func (a *App) Start(serveMode bool) error {
 		fmt.Printf("Opening file: %s\n", a.TargetFile)
 	}
 	fmt.Printf("\n")
-	fmt.Printf("Press Ctrl+C to stop the server\n")
-	fmt.Printf("\n")
 
 	// Open browser unless in serve mode
 	if !serveMode {
+		fmt.Printf("Opening browser...\n")
 		if err := openBrowser(url); err != nil {
 			log.Printf("Could not open browser automatically: %v\n", err)
 			fmt.Printf("Please open your browser manually to: %s\n", url)
 		}
+		fmt.Printf("Will auto-shutdown after all browser tabs are closed\n")
+	} else {
+		fmt.Printf("Running in serve mode (no auto-shutdown)\n")
+		fmt.Printf("Press Ctrl+C to stop the server\n")
 	}
+	fmt.Printf("\n")
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
