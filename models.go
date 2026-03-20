@@ -139,11 +139,13 @@ type IndexData struct {
 
 // DocumentData represents data for the document template
 type DocumentData struct {
-	Title    string
-	AppTitle string
-	DirName  string
-	AbsPath  string
-	Content  template.HTML
+	Title      string
+	AppTitle   string
+	DirName    string
+	AbsPath    string
+	Content    template.HTML
+	Trees      []DirectoryTree
+	CurrentDoc string // RelPath of the current document for highlighting
 }
 
 // TreeNode represents a node in the directory tree

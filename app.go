@@ -487,12 +487,16 @@ func (a *App) handleDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	htmlContent := buf.Bytes()
 
+	trees := a.BuildDirectoryTrees()
+
 	data := DocumentData{
-		Title:    doc.Title,
-		AppTitle: a.Config.Title,
-		DirName:  doc.DirName,
-		AbsPath:  doc.AbsPath,
-		Content:  template.HTML(htmlContent),
+		Title:      doc.Title,
+		AppTitle:   a.Config.Title,
+		DirName:    doc.DirName,
+		AbsPath:    doc.AbsPath,
+		Content:    template.HTML(htmlContent),
+		Trees:      trees,
+		CurrentDoc: doc.RelPath,
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {

@@ -3,9 +3,160 @@
 <head>
     <title>{{.Title}} - {{.AppTitle}}</title>
     <style>
+        * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; line-height: 1.6; }
-        .page-wrapper { display: flex; max-width: 1400px; margin: 0 auto; padding: 20px; gap: 20px; }
-        .toc-sidebar { width: 280px; flex-shrink: 0; position: sticky; top: 20px; align-self: flex-start; max-height: calc(100vh - 40px); overflow-y: auto; }
+
+        .page-wrapper { display: flex; max-width: 1600px; margin: 0 auto; padding: 20px; gap: 20px; }
+
+        /* Document tree sidebar (left) */
+        .tree-sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            transition: width 0.3s, opacity 0.3s;
+        }
+        .tree-sidebar.collapsed {
+            width: 0;
+            overflow: hidden;
+            opacity: 0;
+            padding: 0;
+        }
+        .tree-sidebar-inner {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .tree-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .tree-sidebar-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+            margin: 0;
+        }
+        .tree-sidebar-title a {
+            color: #333;
+            text-decoration: none;
+        }
+        .tree-sidebar-title a:hover {
+            color: #007bff;
+        }
+        .tree-collapse-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+        .tree-collapse-btn:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        /* Toggle button (visible when tree is collapsed) */
+        .tree-toggle-btn {
+            display: none;
+            position: fixed;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            padding: 12px 6px;
+            font-size: 14px;
+            color: #666;
+            z-index: 100;
+            writing-mode: vertical-lr;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+        .tree-toggle-btn:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+        .tree-sidebar.collapsed ~ .tree-toggle-btn,
+        .tree-toggle-btn.visible {
+            display: block;
+        }
+
+        /* Tree structure inside the sidebar */
+        .tree-source-group { margin-bottom: 10px; }
+        .tree-source-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #495057;
+            padding: 4px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tree-source-name:hover { color: #007bff; }
+        .sidebar-tree-node { list-style: none; padding: 0; margin: 0; }
+        .sidebar-tree-node > li { margin: 1px 0; }
+        .sidebar-tree-item {
+            display: flex;
+            align-items: center;
+            padding: 3px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.15s;
+        }
+        .sidebar-tree-item:hover { background: #e9ecef; }
+        .sidebar-tree-item.file { color: #3498db; }
+        .sidebar-tree-item.file:visited { color: #3498db; }
+        .sidebar-tree-item.file.current {
+            background: #007bff;
+            color: white;
+            font-weight: 600;
+        }
+        .sidebar-tree-item.directory { color: #34495e; font-weight: 500; }
+        .sidebar-tree-icon { margin-right: 4px; font-size: 12px; width: 16px; text-align: center; flex-shrink: 0; }
+        .sidebar-tree-toggle {
+            font-size: 10px;
+            width: 14px;
+            text-align: center;
+            color: #95a5a6;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+        .sidebar-tree-toggle.open { transform: rotate(90deg); }
+        .sidebar-tree-toggle.empty { visibility: hidden; }
+        .sidebar-tree-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-tree-children {
+            margin-left: 16px;
+            border-left: 1px solid #ecf0f1;
+            padding-left: 6px;
+            display: none;
+        }
+        .sidebar-tree-children.open { display: block; }
+
+        /* TOC sidebar (right of tree, left of content) */
+        .toc-sidebar { width: 260px; flex-shrink: 0; position: sticky; top: 20px; align-self: flex-start; max-height: calc(100vh - 40px); overflow-y: auto; }
         .toc-container { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; }
         .toc-title { font-weight: bold; font-size: 16px; margin: 0 0 15px 0; color: #333; }
         .toc-nav { list-style: none; padding: 0; margin: 0; }
@@ -17,6 +168,8 @@
         .toc-nav .toc-h2 { padding-left: 0; font-weight: 500; margin-top: 8px; }
         .toc-nav .toc-h3 { padding-left: 15px; font-size: 13px; }
         .toc-nav .toc-h4 { padding-left: 30px; font-size: 12px; color: #888; }
+
+        /* Main content */
         .main-content { flex: 1; min-width: 0; }
         .header { background: #f8f9fa; padding: 15px; margin-bottom: 30px; border-radius: 8px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -51,14 +204,71 @@
         .content th, .content td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
         .content th { background: #f8f9fa; }
 
+        /* Responsive: collapse tree on narrow viewports */
+        @media (max-width: 1200px) {
+            .tree-sidebar { width: 0; overflow: hidden; opacity: 0; padding: 0; }
+            .tree-sidebar.collapsed { width: 0; }
+            .tree-toggle-btn { display: block; }
+        }
         @media (max-width: 1024px) {
             .page-wrapper { flex-direction: column; }
             .toc-sidebar { width: 100%; position: static; max-height: none; }
+            .tree-toggle-btn { display: none; }
+            .tree-sidebar { display: none; }
         }
     </style>
 </head>
 <body>
+    {{define "doc-tree-node"}}
+    <ul class="sidebar-tree-node">
+        {{range .}}
+        <li>
+            {{if .IsFile}}
+                <a href="/doc/{{.Document.RelPath}}" class="sidebar-tree-item file" data-path="{{.Document.RelPath}}" title="{{.Name}}">
+                    <span class="sidebar-tree-toggle empty"></span>
+                    <span class="sidebar-tree-icon">📄</span>
+                    <span class="sidebar-tree-label">{{.Name}}</span>
+                </a>
+            {{else}}
+                <div class="sidebar-tree-item directory" onclick="toggleSidebarNode(this)">
+                    <span class="sidebar-tree-toggle{{if .IsOpen}} open{{end}}">▶</span>
+                    <span class="sidebar-tree-icon">📁</span>
+                    <span class="sidebar-tree-label">{{.Name}}</span>
+                </div>
+                {{if .Children}}
+                <div class="sidebar-tree-children{{if .IsOpen}} open{{end}}">
+                    {{template "doc-tree-node" .Children}}
+                </div>
+                {{end}}
+            {{end}}
+        </li>
+        {{end}}
+    </ul>
+    {{end}}
+
     <div class="page-wrapper">
+        <aside class="tree-sidebar" id="tree-sidebar" data-current-doc="{{.CurrentDoc}}">
+            <div class="tree-sidebar-inner">
+                <div class="tree-sidebar-header">
+                    <div class="tree-sidebar-title"><a href="/">{{.AppTitle}}</a></div>
+                    <button class="tree-collapse-btn" onclick="collapseTree()" title="Hide document tree">&laquo;</button>
+                </div>
+                {{range .Trees}}
+                <div class="tree-source-group">
+                    <div class="tree-source-name" onclick="toggleSidebarNode(this)">
+                        <span class="sidebar-tree-toggle open">▶</span>
+                        {{.Name}}
+                    </div>
+                    <div class="sidebar-tree-children open">
+                        {{template "doc-tree-node" .Root.Children}}
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </aside>
+
+        <button class="tree-toggle-btn" id="tree-toggle-btn" onclick="expandTree()" title="Show document tree">&#9776; Docs</button>
+
         <aside class="toc-sidebar">
             <nav class="toc-container">
                 <div class="toc-title">Table of Contents</div>
@@ -82,18 +292,94 @@
     </div>
 
     <script>
+        // Tree sidebar toggle
+        function collapseTree() {
+            var sidebar = document.getElementById('tree-sidebar');
+            var btn = document.getElementById('tree-toggle-btn');
+            sidebar.classList.add('collapsed');
+            btn.classList.add('visible');
+            localStorage.setItem('dimandocs-tree-collapsed', '1');
+        }
+
+        function expandTree() {
+            var sidebar = document.getElementById('tree-sidebar');
+            var btn = document.getElementById('tree-toggle-btn');
+            sidebar.classList.remove('collapsed');
+            btn.classList.remove('visible');
+            localStorage.setItem('dimandocs-tree-collapsed', '0');
+        }
+
+        function toggleSidebarNode(element) {
+            var toggle = element.querySelector('.sidebar-tree-toggle');
+            var children = element.nextElementSibling;
+            if (children && children.classList.contains('sidebar-tree-children')) {
+                children.classList.toggle('open');
+                if (toggle) toggle.classList.toggle('open');
+            }
+        }
+
+        // Restore collapsed state and highlight current document
+        (function() {
+            var collapsed = localStorage.getItem('dimandocs-tree-collapsed');
+            var sidebar = document.getElementById('tree-sidebar');
+            var btn = document.getElementById('tree-toggle-btn');
+
+            // Auto-collapse if viewport is narrow
+            if (collapsed === null) {
+                if (window.innerWidth <= 1200) {
+                    sidebar.classList.add('collapsed');
+                    btn.classList.add('visible');
+                }
+            } else if (collapsed === '1') {
+                sidebar.classList.add('collapsed');
+                btn.classList.add('visible');
+            }
+
+            // Mark current document in the tree
+            var currentDoc = sidebar.getAttribute('data-current-doc');
+            if (currentDoc) {
+                var links = sidebar.querySelectorAll('.sidebar-tree-item.file');
+                for (var i = 0; i < links.length; i++) {
+                    if (links[i].getAttribute('data-path') === currentDoc) {
+                        links[i].classList.add('current');
+                        break;
+                    }
+                }
+            }
+
+            // Expand parent tree nodes to reveal current document
+            var current = document.querySelector('.sidebar-tree-item.current');
+            if (current) {
+                var parent = current.parentElement;
+                while (parent && !parent.classList.contains('tree-sidebar-inner')) {
+                    if (parent.classList.contains('sidebar-tree-children') && !parent.classList.contains('open')) {
+                        parent.classList.add('open');
+                        var prev = parent.previousElementSibling;
+                        if (prev) {
+                            var t = prev.querySelector('.sidebar-tree-toggle');
+                            if (t) t.classList.add('open');
+                        }
+                    }
+                    parent = parent.parentElement;
+                }
+                // Scroll the current item into view within the sidebar
+                setTimeout(function() {
+                    current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }, 100);
+            }
+        })();
+
         // Reload button functionality
-        const reloadBtn = document.getElementById('reload-btn');
+        var reloadBtn = document.getElementById('reload-btn');
         reloadBtn.addEventListener('click', async function() {
             reloadBtn.disabled = true;
             reloadBtn.textContent = 'Reloading...';
 
             try {
-                const response = await fetch('/api/reload', { method: 'POST' });
-                const data = await response.json();
+                var response = await fetch('/api/reload', { method: 'POST' });
+                var data = await response.json();
 
                 if (data.success) {
-                    // Reload the page to show updated document
                     window.location.reload();
                 } else {
                     alert('Failed to reload documents');
@@ -110,23 +396,20 @@
 
         // Generate Table of Contents
         (function() {
-            const content = document.getElementById('document-content');
-            const tocNav = document.getElementById('toc-nav');
+            var content = document.getElementById('document-content');
+            var tocNav = document.getElementById('toc-nav');
 
-            // Find all headers H1-H4
-            const headers = content.querySelectorAll('h1, h2, h3, h4');
+            var headers = content.querySelectorAll('h1, h2, h3, h4');
 
             if (headers.length === 0) {
                 document.querySelector('.toc-sidebar').style.display = 'none';
                 return;
             }
 
-            // Generate IDs and TOC items
-            headers.forEach((header, index) => {
-                // Generate ID if not present
+            headers.forEach(function(header, index) {
                 if (!header.id) {
-                    const text = header.textContent.trim();
-                    const id = 'heading-' + text
+                    var text = header.textContent.trim();
+                    var id = 'heading-' + text
                         .toLowerCase()
                         .replace(/[^\w\s-]/g, '')
                         .replace(/\s+/g, '-')
@@ -135,16 +418,15 @@
                     header.id = id;
                 }
 
-                // Create TOC item
-                const li = document.createElement('li');
-                const a = document.createElement('a');
+                var li = document.createElement('li');
+                var a = document.createElement('a');
                 a.href = '#' + header.id;
                 a.textContent = header.textContent.trim();
                 a.className = 'toc-' + header.tagName.toLowerCase();
 
-                a.addEventListener('click', (e) => {
+                a.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const target = document.getElementById(header.id);
+                    var target = document.getElementById(header.id);
                     if (target) {
                         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         history.pushState(null, null, '#' + header.id);
@@ -156,34 +438,30 @@
             });
 
             // Active link highlighting on scroll
-            let ticking = false;
+            var ticking = false;
 
             function updateActiveLink() {
-                const scrollPosition = window.scrollY + 100;
+                var scrollPosition = window.scrollY + 100;
+                var currentHeader = null;
 
-                let currentHeader = null;
-                headers.forEach(header => {
-                    const rect = header.getBoundingClientRect();
-                    const headerTop = window.scrollY + rect.top;
-
+                headers.forEach(function(header) {
+                    var rect = header.getBoundingClientRect();
+                    var headerTop = window.scrollY + rect.top;
                     if (headerTop <= scrollPosition) {
                         currentHeader = header;
                     }
                 });
 
-                // Remove all active classes
-                document.querySelectorAll('.toc-nav a').forEach(link => {
+                document.querySelectorAll('.toc-nav a').forEach(function(link) {
                     link.classList.remove('active');
                 });
 
-                // Add active class to current header
                 if (currentHeader) {
-                    const activeLink = document.querySelector('.toc-nav a[href="#' + currentHeader.id + '"]');
+                    var activeLink = document.querySelector('.toc-nav a[href="#' + currentHeader.id + '"]');
                     if (activeLink) {
                         activeLink.classList.add('active');
                     }
                 }
-
                 ticking = false;
             }
 
@@ -195,14 +473,11 @@
             }
 
             window.addEventListener('scroll', onScroll);
-
-            // Initial update
             updateActiveLink();
 
-            // Handle hash on page load
             if (window.location.hash) {
-                setTimeout(() => {
-                    const target = document.querySelector(window.location.hash);
+                setTimeout(function() {
+                    var target = document.querySelector(window.location.hash);
                     if (target) {
                         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -213,7 +488,8 @@
     <script>
         (function() {
             var es = new EventSource('/events');
-            es.onerror = function() { setTimeout(function() { es = new EventSource('/events'); }, 2000); };
+            es.onerror = function() { es.close(); setTimeout(function() { es = new EventSource('/events'); }, 2000); };
+            window.addEventListener('beforeunload', function() { es.close(); });
         })();
     </script>
 </body>
